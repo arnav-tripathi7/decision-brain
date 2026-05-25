@@ -60,7 +60,7 @@ To prevent the vehicle from returning to its original lane prematurely and clipp
 * **Simulation Engine:** Webots City World Environment (`city.wbt`)
 * **Vehicle Prototype:** BMW X5 PROTO
 * **Development Environment:** Anaconda Python 3
-* **Host Operating System:** macOS (Apple Silicon M3 Architecture optimized via UTM virtual environments)
+* **Host Operating System:** macOS 
 
 ---
 
