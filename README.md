@@ -8,71 +8,70 @@ A deterministic, high-frequency tactical planner and decision brain for a Level 
 
 This software stack is designed around a hierarchical **Finite State Machine (FSM)** that acts as the vehicle’s central decision brain. The primary engineering goal is resolving the dependency between high-latency image processing and critical, low-latency collision avoidance systems.
 
+
 ```
-                  +--------------------------------+
-                  |       Sensory Subsystems       |
-                  |  (Windshield Camera & LiDAR)   |
-                  +--------------------------------+
-                                  |
-            +---------------------+---------------------+
-            |                                           |
-            v                                           v
+
+```
+              +--------------------------------+
+              |       Sensory Subsystems       |
+              |  (Windshield Camera & LiDAR)   |
+              +--------------------------------+
+                              |
+        +---------------------+---------------------+
+        |                                           |
+        v                                           v
+
+```
+
 +-----------------------+                    +---------------------+
 |   Lateral Steering    |                    | Longitudinal Safety |
 |   (OpenCV Matrices)   |                    |   (LiDAR Arrays)    |
 +-----------------------+                    +---------------------+
-            |                                           |
-            +---------------------+---------------------+
-                                  |
-                                  v
-                  +--------------------------------+
-                  |  Deterministic FSM Planner     |
-                  |   (Dual-Sensor Arbitration)    |
-                  +--------------------------------+
+|                                           |
++---------------------+---------------------+
+|
+v
++--------------------------------+
+|  Deterministic FSM Planner     |
+|   (Dual-Sensor Arbitration)    |
++--------------------------------+
 
 ```
 
 ### 1. Lateral Control (OpenCV Boundary Cushion Tracking)
-
 Instead of relying on continuous, highly absolute coordinates, the vehicle utilizes a **relative tracking framework**:
-
 * **Calibration Matrix:** On frame initialization (`Step 1`), the perception pipeline samples the exact pixel distance from the camera center to the left broken white line and the right solid yellow divider line (Indian traffic left-hand driving layout).
 * **Relative Reference Lock:** The vehicle targets this exact relative coordinate space during transit. Deviations from this target cushion trigger linear steering corrections, drastically dampening oscillatory weaving profiles.
 * **Hysteresis Blind Hold:** At open crossroads and intersections where lane markers structurally drop out, pixel density metrics fall below a specific threshold (450 pixels). The system handles this gracefully by entering a **Blind Crossing Hold**, freezing the steering angle perfectly straight (0.0) to mitigate trajectory drift until lines reappear and re-lock.
 
 ### 2. Longitudinal Safety & Tactical Overtaking (180° LiDAR Sectorization)
-
 The vehicle's bumper mounts a 180-degree directional laser scanner array, mathematically split into distinct perception zones:
-
 * **Frontal Integration Cone ($\pm$5°):** Actively monitors distance-to-collision profiles straight ahead.
 * **Flank Clearance Pools (15° to 45° Left/Right):** Continuously sample flanking obstacle clearance horizons.
 
 When a dynamic or static path obstruction breaches the **8.5m tactical threshold**, the planner evaluates the spatial density profiles of the flank pools. It calculates the obstacle's horizontal span ratio and triggers an immediate, smooth lateral swerve profile toward whichever side yields maximum clearance.
 
 ### 3. Closed-Loop Side-Scanning Recovery
-
 To prevent the vehicle from returning to its original lane prematurely and clipping an obstacle, the system deploys a geometric verification step. During a passing maneuver, the vehicle locks its wheel angles straight and relies exclusively on side LiDAR rays. The return maneuver to the baseline lane configuration is completely suppressed until the active side sensor values step cleanly to infinity, proving the rear bumper has cleared the obstacle footprint.
 
 ---
 
 ## 🛠️ Hardware & Environment Stack
-
 * **Simulation Engine:** Webots City World Environment (`city.wbt`)
 * **Vehicle Prototype:** BMW X5 PROTO
 * **Development Environment:** Anaconda Python 3
-* **Host Operating System:** macOS 
+* **Host Operating System:** macOS (Apple Silicon M3 Architecture optimized via UTM virtual environments)
 
 ---
 
 ## 📂 Repository Structure
-
 ```text
 ├── .gitignore                        # Git exclusion rules
 ├── LICENSE                           # MIT Open Source License
 ├── requirements.txt                  # Python dependency manifestations
 ├── controllers/
-│   └── PureRelativeAVPlanner/
-│       └── PureRelativeAVPlanner.py  # Master FSM Planning & Perception Script
+│   └── av_decision_brain/
+│       └── av_decision_brain.py      # Master FSM Planning & Perception Script
 └── worlds/
     └── city.wbt                      # Webots Indian Traffic Layout Environment
 
@@ -307,3 +306,7 @@ An absolute priority safety gate overrides all active state trajectories when:
 
 * Frontal spacing drops below 3.8 meters.
 * Multi-lane blocking scenarios occur where flank spaces fail to offer adequate clearing pathways (<= 4.0m + 10 * Steering Angle).
+
+```
+
+```
