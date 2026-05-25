@@ -1,5 +1,4 @@
-````markdown
-# 🚗 Webots Level-3 Tactical Autonomous Vehicle Planner
+# Webots Level-3 Tactical Autonomous Vehicle Planner
 
 A deterministic, high-frequency tactical planner and decision brain for a Level 3 Autonomous Vehicle implementation. Built using **Python** and **OpenCV** inside the **Webots Simulation Engine**, this system architectures a robust control loop by strictly decoupling lateral perception from longitudinal safety streams to navigate complex urban corridors.
 
@@ -7,100 +6,92 @@ A deterministic, high-frequency tactical planner and decision brain for a Level 
 
 ## 🏎️ Core Architecture & Control Philosophy
 
-This software stack is designed around a hierarchical **Finite State Machine (FSM)** that acts as the vehicle's central decision brain. The primary engineering goal is resolving the dependency between high-latency image processing and critical, low-latency collision avoidance systems.
+This software stack is designed around a hierarchical **Finite State Machine (FSM)** that acts as the vehicle’s central decision brain. The primary engineering goal is resolving the dependency between high-latency image processing and critical, low-latency collision avoidance systems.
 
 ```
-          +--------------------------------+
-          |       Sensory Subsystems       |
-          |  (Windshield Camera & LiDAR)   |
-          +--------------------------------+
-                          |
-        +---------------------+---------------------+
-        |                                           |
-        v                                           v
-+-----------------------+                +---------------------+
-|   Lateral Steering    |                | Longitudinal Safety |
-|   (OpenCV Matrices)   |                |   (LiDAR Arrays)    |
-+-----------------------+                +---------------------+
-        |                                           |
-        +---------------------+---------------------+
-                              |
-                              v
-              +--------------------------------+
-              |  Deterministic FSM Planner     |
-              |   (Dual-Sensor Arbitration)    |
-              +--------------------------------+
+                  +--------------------------------+
+                  |       Sensory Subsystems       |
+                  |  (Windshield Camera & LiDAR)   |
+                  +--------------------------------+
+                                  |
+            +---------------------+---------------------+
+            |                                           |
+            v                                           v
++-----------------------+                    +---------------------+
+|   Lateral Steering    |                    | Longitudinal Safety |
+|   (OpenCV Matrices)   |                    |   (LiDAR Arrays)    |
++-----------------------+                    +---------------------+
+            |                                           |
+            +---------------------+---------------------+
+                                  |
+                                  v
+                  +--------------------------------+
+                  |  Deterministic FSM Planner     |
+                  |   (Dual-Sensor Arbitration)    |
+                  +--------------------------------+
+
 ```
 
----
-
-### 1. Lateral Control — OpenCV Boundary Cushion Tracking
+### 1. Lateral Control (OpenCV Boundary Cushion Tracking)
 
 Instead of relying on continuous, highly absolute coordinates, the vehicle utilizes a **relative tracking framework**:
 
-- **Calibration Matrix:** On frame initialization (Step 1), the perception pipeline samples the exact pixel distance from the camera center to the left broken white line and the right solid yellow divider line (Indian traffic left-hand driving layout).
+* **Calibration Matrix:** On frame initialization (`Step 1`), the perception pipeline samples the exact pixel distance from the camera center to the left broken white line and the right solid yellow divider line (Indian traffic left-hand driving layout).
+* **Relative Reference Lock:** The vehicle targets this exact relative coordinate space during transit. Deviations from this target cushion trigger linear steering corrections, drastically dampening oscillatory weaving profiles.
+* **Hysteresis Blind Hold:** At open crossroads and intersections where lane markers structurally drop out, pixel density metrics fall below a specific threshold (450 pixels). The system handles this gracefully by entering a **Blind Crossing Hold**, freezing the steering angle perfectly straight (0.0) to mitigate trajectory drift until lines reappear and re-lock.
 
-- **Relative Reference Lock:** The vehicle targets this exact relative coordinate space during transit. Deviations from this target cushion trigger linear steering corrections, drastically dampening oscillatory weaving profiles.
+### 2. Longitudinal Safety & Tactical Overtaking (180° LiDAR Sectorization)
 
-- **Hysteresis Blind Hold:** At open crossroads and intersections where lane markers structurally drop out, pixel density metrics fall below a specific threshold (450 pixels). The system handles this gracefully by entering a **Blind Crossing Hold** — freezing the steering angle perfectly straight (`0.0`) to mitigate trajectory drift until lines reappear and re-lock.
+The vehicle's bumper mounts a 180-degree directional laser scanner array, mathematically split into distinct perception zones:
 
----
-
-### 2. Longitudinal Safety & Tactical Overtaking — 180° LiDAR Sectorization
-
-The vehicle's bumper mounts a **180-degree directional laser scanner array**, mathematically split into distinct perception zones:
-
-- **Frontal Integration Cone (±5°):** Actively monitors distance-to-collision profiles straight ahead.
-- **Flank Clearance Pools (15° to 45° Left/Right):** Continuously sample flanking obstacle clearance horizons.
+* **Frontal Integration Cone ($\pm$5°):** Actively monitors distance-to-collision profiles straight ahead.
+* **Flank Clearance Pools (15° to 45° Left/Right):** Continuously sample flanking obstacle clearance horizons.
 
 When a dynamic or static path obstruction breaches the **8.5m tactical threshold**, the planner evaluates the spatial density profiles of the flank pools. It calculates the obstacle's horizontal span ratio and triggers an immediate, smooth lateral swerve profile toward whichever side yields maximum clearance.
 
----
-
 ### 3. Closed-Loop Side-Scanning Recovery
 
-To prevent the vehicle from returning to its original lane prematurely and clipping an obstacle, the system deploys a **geometric verification step**.
-
-During a passing maneuver, the vehicle locks its wheel angles straight and relies exclusively on side LiDAR rays. The return maneuver to the baseline lane configuration is completely suppressed until the active side sensor values step cleanly to `infinity` — proving the rear bumper has cleared the obstacle footprint.
+To prevent the vehicle from returning to its original lane prematurely and clipping an obstacle, the system deploys a geometric verification step. During a passing maneuver, the vehicle locks its wheel angles straight and relies exclusively on side LiDAR rays. The return maneuver to the baseline lane configuration is completely suppressed until the active side sensor values step cleanly to infinity, proving the rear bumper has cleared the obstacle footprint.
 
 ---
 
 ## 🛠️ Hardware & Environment Stack
 
-| Component | Details |
-|---|---|
-| **Simulation Engine** | Webots City World Environment (`city.wbt`) |
-| **Vehicle Prototype** | BMW X5 PROTO |
-| **Development Environment** | Anaconda Python 3 |
-| **Host Operating System** | macOS (Apple Silicon M3 — optimized via UTM virtual environments) |
+* **Simulation Engine:** Webots City World Environment (`city.wbt`)
+* **Vehicle Prototype:** BMW X5 PROTO
+* **Development Environment:** Anaconda Python 3
+* **Host Operating System:** macOS (Apple Silicon M3 Architecture optimized via UTM virtual environments)
 
 ---
 
 ## 📂 Repository Structure
 
-```
+```text
+├── .gitignore                        # Git exclusion rules
+├── LICENSE                           # MIT Open Source License
+├── requirements.txt                  # Python dependency manifestations
 ├── controllers/
 │   └── PureRelativeAVPlanner/
 │       └── PureRelativeAVPlanner.py  # Master FSM Planning & Perception Script
-├── worlds/
-│   └── city.wbt                      # Webots Indian Traffic Layout Environment
-└── README.md
+└── worlds/
+    └── city.wbt                      # Webots Indian Traffic Layout Environment
+
 ```
 
 ---
 
 ## 🚀 Finite State Machine (FSM) Specification
 
-The system operates across **six highly distinct, deterministic states** to maintain deterministic state propagation:
+The system operates across six highly distinct, deterministic states to maintain deterministic state propagation:
 
 | State ID | State Constant | Functional Description | Target Velocity |
-|:---:|---|---|:---:|
+| --- | --- | --- | --- |
 | `0` | `STATE_LANE_CRUISE` | Standard relative lane keeping tracking using color-space segmentation. | 30.0 km/h |
-| `1` | `STATE_ADAPTIVE_CRUISE` | Distance-proportional deceleration active; monitors tactical swerve options. | 10.0 – 22.0 km/h |
+| `1` | `STATE_ADAPTIVE_CRUISE` | Distance-proportional deceleration active; monitors tactical swerve options. | 10.0 - 22.0 km/h |
 | `2` | `STATE_OVERTAKE_SWERVE` | Initiates steering deflection based on LiDAR flank clearance computations. | 12.0 km/h |
 | `3` | `STATE_OVERTAKE_PASSING` | Freezes steering angle; monitors side LiDAR profile clearance bounds. | 16.0 km/h |
 | `4` | `STATE_OVERTAKE_RECOVERY` | Executes reverse curvature steering deflection to return to target lane. | 14.0 km/h |
-| `5` | `STATE_EMERGENCY_HALT` | High-priority safety gate. Triggers `0.0` steering and applies max braking. | 0.0 km/h |
+| `5` | `STATE_EMERGENCY_HALT` | High-priority safety gate. Triggers 0.0 steering and applies max braking. | 0.0 km/h |
 
 ---
 
@@ -296,6 +287,7 @@ class PureRelativeAVPlanner:
 if __name__ == "__main__":
     planner = PureRelativeAVPlanner()
     planner.run_loop()
+
 ```
 
 ---
@@ -305,19 +297,13 @@ if __name__ == "__main__":
 ### Adaptive Cruise Behavior
 
 When tracking standard vehicles ahead, the longitudinal pipeline scales vehicle speed based on the linear relation:
+Target Velocity = Max(10.0, (Distance Ahead - 5.0) * 2.0)
 
-```
-Target Velocity = Max(10.0, (Distance Ahead - 5.0) × 2.0)
-```
-
-This forces safe **asymptotic deceleration profiles** down to a minimum velocity anchor of **10 km/h** before an evasion state execution or emergency intervention triggers.
-
----
+This forces safe asymptotic deceleration profiles down to a minimum velocity anchor of 10 km/h before an evasion state execution or emergency intervention triggers.
 
 ### Critical Safety Limits
 
-An absolute priority safety gate overrides **all** active state trajectories when:
+An absolute priority safety gate overrides all active state trajectories when:
 
-- Frontal spacing drops below **3.8 meters**
-- Multi-lane blocking scenarios occur where flank spaces fail to offer adequate clearing pathways — i.e., clearance ≤ `4.0m + 10 × Steering Angle`
-````
+* Frontal spacing drops below 3.8 meters.
+* Multi-lane blocking scenarios occur where flank spaces fail to offer adequate clearing pathways (<= 4.0m + 10 * Steering Angle).
